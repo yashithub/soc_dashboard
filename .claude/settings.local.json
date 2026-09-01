@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npm *)",
+      "Bash(node scripts/validate_palette.js \"#d03b3b,#ec835a,#fab219,#3987e5\" --mode dark --surface \"#111826\")",
+      "Bash(node scripts/validate_palette.js \"#3987e5,#d03b3b\" --mode dark --surface \"#111826\" --pairs all)",
+      "Bash(node scripts/validate_palette.js --help)",
+      "PowerShell(node \"C:\\\\Users\\\\YASHPR~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Yash-Pradeep-soc-dashboard\\\\1fd990a6-fec6-4920-94bc-617f78c27761\\\\scratchpad\\\\verify.mjs\")",
+      "PowerShell($s=\"C:\\\\Users\\\\YASHPR~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Yash-Pradeep-soc-dashboard\\\\1fd990a6-fec6-4920-94bc-617f78c27761\\\\scratchpad\"; node \"$s\\\\ssr-build.mjs\")",
+      "Bash(sed -i \"s#'/src/#'file:///C:/Users/Yash%20Pradeep/soc-dashboard/src/#g\" ssr-entry.jsx)",
+      "Bash(sed -i \"s#^  alias.*#  external: [],#\" ssr-build.mjs)",
+      "Bash(sed -i \"/Dashboard as _unused/d\" ssr-entry.jsx)",
+      "Bash(node ssr-build.mjs)",
+      "PowerShell($s=\"C:\\\\Users\\\\YASHPR~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Yash-Pradeep-soc-dashboard\\\\1fd990a6-fec6-4920-94bc-617f78c27761\\\\scratchpad\"; node \"$s\\\\ssr-check.mjs\")",
+      "Bash(sed -i \"s#  external: \\\\[\\\\],#  banner: { js: \\\\\"import { createRequire as __cr } from 'module'; const require = __cr\\(import.meta.url\\);\\\\\" },#\" ssr-build.mjs)",
+      "Bash(node ssr-check.mjs)"
+    ]
+  }
+}

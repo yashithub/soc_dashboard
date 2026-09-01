@@ -1,0 +1,94 @@
+@import 'tailwindcss';
+
+/*
+ * CyberShield SOC — design tokens.
+ * Dark-only surface set. Every colour used by the UI and by the charts is
+ * declared here once, so the palette can be retuned in a single place.
+ *
+ * The severity ramp was validated against the panel surface (#111826) for
+ * colour-vision separation and contrast; see README "Colour system".
+ */
+@theme {
+  /* Surfaces */
+  --color-page: #0b0f16;
+  --color-panel: #111826;
+  --color-panel-raised: #161f30;
+  --color-panel-sunken: #0d1420;
+  --color-line: #212c3f;
+  --color-line-strong: #2f3d55;
+
+  /* Ink */
+  --color-ink: #e8eef6;
+  --color-ink-muted: #a3b0c2;
+  --color-ink-faint: #6f7f94;
+
+  /* Brand / primary series */
+  --color-accent: #3987e5;
+  --color-accent-dim: #1f4f8a;
+
+  /* Severity ramp (ordered: critical → low) */
+  --color-sev-critical: #d64545;
+  --color-sev-high: #f79a4a;
+  --color-sev-medium: #a88300;
+  --color-sev-low: #4b93e0;
+
+  /* Operational status — deliberately outside the severity ramp */
+  --color-ok: #3fb950;
+  --color-sim: #8b93a7;
+
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'Cascadia Mono', Menlo, Consolas, monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-page text-ink font-sans antialiased;
+    font-size: 14px;
+  }
+
+  /* Consistent, visible keyboard focus everywhere. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-panel-sunken);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border-radius: 6px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3d4d68;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Recharts resets its own focus ring; keep ours consistent. */
+.recharts-wrapper:focus,
+.recharts-surface:focus {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
