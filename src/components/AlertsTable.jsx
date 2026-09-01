@@ -14,9 +14,11 @@ import { SEVERITY_STYLE } from '../theme/tokens.js'
  * squeezing seven columns into a phone width.
  */
 const COLUMNS = [
-  { key: 'id', label: 'Incident ID', width: 'w-[110px]' },
+  { key: 'id', label: 'Flow ID', width: 'w-[110px]' },
   { key: 'timestamp', label: 'Timestamp', sortable: true, width: 'w-[92px]' },
-  { key: 'source', label: 'Source', hideBelow: 'hidden md:table-cell' },
+  { key: 'sourceIP', label: 'Source IP', hideBelow: 'hidden md:table-cell' },
+  { key: 'destinationIP', label: 'Dest IP', hideBelow: 'hidden lg:table-cell' },
+  { key: 'protocol', label: 'Protocol', width: 'w-[80px]' },
   { key: 'threatType', label: 'Threat Type', width: 'w-[150px]' },
   { key: 'severity', label: 'Severity', sortable: true, width: 'w-[120px]' },
   {
@@ -179,9 +181,17 @@ export function AlertsTable({ alerts, selectedId, onSelect, onClearFilters }) {
 
                   <td className="hidden max-w-[260px] px-3 py-2.5 md:table-cell">
                     <span className="block truncate text-[13px] text-ink-muted">
-                      {alert.source}
+                      {alert.sourceIP}
                     </span>
                   </td>
+
+                  <td className="hidden max-w-[260px] px-3 py-2.5 lg:table-cell">
+                    <span className="block truncate text-[13px] text-ink-muted">
+                      {alert.destinationIP}
+                    </span>
+                  </td>
+
+                  <td className="px-3 py-2.5 text-[12px] text-ink-muted font-mono">{alert.protocol}</td>
 
                   <td className="px-3 py-2.5 text-[13px] text-ink">{alert.threatType}</td>
 

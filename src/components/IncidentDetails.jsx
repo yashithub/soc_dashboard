@@ -13,7 +13,7 @@ import {
 import { EVIDENCE_STATUS } from '../constants/threatModel.js'
 import { DetailRow } from './ui/Panel.jsx'
 import { ConfidenceMeter, SeverityBadge, SimulatedTag, StatusBadge } from './ui/Badges.jsx'
-import { formatFullTimestamp, formatNumber, formatRelative, truncateHash } from '../utils/format.js'
+import { formatFullTimestamp, formatNumber, formatRelative, truncateHash, formatCompact } from '../utils/format.js'
 
 function SectionHeading({ icon: Icon, children, tag }) {
   return (
@@ -67,8 +67,8 @@ function HashField({ hash }) {
  * nothing is anchored anywhere, and no transaction exists. The panel documents
  * the intended chain of custody rather than simulating one.
  */
-function EvidenceIntegrity({ evidence }) {
-  const recorded = evidence.status === EVIDENCE_STATUS.RECORDED
+function EvidenceIntegrity({ evidenceStatus, evidenceHash }) {
+  const recorded = evidenceStatus === EVIDENCE_STATUS.RECORDED
 
   return (
     <div className="rounded-md border border-line bg-panel-sunken p-3">
@@ -77,44 +77,29 @@ function EvidenceIntegrity({ evidence }) {
       </SectionHeading>
 
       <dl className="divide-y divide-line/60">
-        <DetailRow label="Evidence Status">
-          <span
-            className={`inline-flex items-center gap-1.5 text-[13px] ${
-              recorded ? 'text-[#7ed08a]' : 'text-[#d3ae3a]'
-            }`}
-          >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${recorded ? 'bg-ok' : 'bg-[#a88300]'}`}
-              aria-hidden
-            />
-            {evidence.status}
-          </span>
-        </DetailRow>
-
         <DetailRow label="Evidence Hash">
-          <HashField hash={evidence.hash} />
+          <HashField hash={evidenceHash} />
         </DetailRow>
 
-        <DetailRow label="Hash Algorithm">{evidence.hashAlgorithm}</DetailRow>
+        <DetailRow label="Hash Status">
+          <span className="text-[13px] text-ink-muted">Generated / Pending Recording</span>
+        </DetailRow>
 
-        <DetailRow label="Blockchain Status">
+        <DetailRow label="Blockchain">
           <span className="inline-flex items-center gap-1.5 text-[13px] text-ink-muted">
-            <span className="h-1.5 w-1.5 rounded-full bg-sim" aria-hidden />
-            {evidence.blockchain}
+            <span className="h-1.5 w-1.5 rounded-full bg-line-strong" aria-hidden />
+            Not Connected
           </span>
         </DetailRow>
 
         <DetailRow label="Verification">
-          <span className="text-[13px] text-ink-muted">{evidence.verification}</span>
+          <span className="text-[13px] text-ink-muted">Not Available</span>
         </DetailRow>
       </dl>
 
       <p className="mt-3 border-t border-line pt-2 text-[11px] leading-relaxed text-ink-faint">
         <strong className="font-medium text-ink-muted">Future integration.</strong>{' '}
-        Forensic evidence will be hashed and the digest anchored on-chain to give
-        tamper-evident chain of custody. No blockchain is connected in this
-        version and the hash above is a generated placeholder, not a digest of
-        real evidence.
+        Reserved for future tamper-evident evidence anchoring.
       </p>
     </div>
   )
@@ -122,10 +107,6 @@ function EvidenceIntegrity({ evidence }) {
 
 /**
  * Incident detail drawer.
- *
- * A right-hand drawer (full-height sheet on small screens) rather than a modal:
- * the analyst keeps the alert queue visible while reading an incident, which is
- * how triage actually works.
  */
 export function IncidentDetails({ alert, onClose }) {
   const closeRef = useRef(null)
@@ -142,8 +123,8 @@ export function IncidentDetails({ alert, onClose }) {
 
   if (!alert) return null
 
-  const indicators = alert.indicators ?? []
-  const actions = alert.recommendedAction ?? []
+  const evidence = alert.supportingEvidence ?? []
+  const actions = alert.recommendedAction ? [alert.recommendedAction] : []
 
   return (
     <>
@@ -185,7 +166,7 @@ export function IncidentDetails({ alert, onClose }) {
 
         <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
           <section>
-            <SectionHeading icon={Radar}>Detection</SectionHeading>
+            <SectionHeading icon={Radar}>Network Flow Detection</SectionHeading>
             <dl className="divide-y divide-line/60">
               <DetailRow label="Detected at">
                 {formatFullTimestamp(alert.timestamp)}
@@ -193,57 +174,55 @@ export function IncidentDetails({ alert, onClose }) {
                   ({formatRelative(alert.timestamp)})
                 </span>
               </DetailRow>
-              <DetailRow label="Source" mono>
-                {alert.source}
-              </DetailRow>
-              <DetailRow label="Target asset" mono>
-                {alert.targetAsset}
-              </DetailRow>
+              <DetailRow label="Source IP" mono>{alert.sourceIP}</DetailRow>
+              <DetailRow label="Source Port" mono>{alert.sourcePort}</DetailRow>
+              <DetailRow label="Dest IP" mono>{alert.destinationIP}</DetailRow>
+              <DetailRow label="Dest Port" mono>{alert.destinationPort}</DetailRow>
+              <DetailRow label="Protocol" mono>{alert.protocol}</DetailRow>
+              <DetailRow label="Direction">{alert.direction}</DetailRow>
+              <DetailRow label="Bytes">{formatNumber(alert.bytes)}</DetailRow>
+              <DetailRow label="Packets">{formatNumber(alert.packets)}</DetailRow>
+              <DetailRow label="Duration">{alert.duration}s</DetailRow>
+              
+              <div className="pt-2 mt-2 border-t border-line border-dashed"></div>
+
               <DetailRow label="Threat type">{alert.threatType}</DetailRow>
-              <DetailRow label="Detection channel">{alert.channel}</DetailRow>
+              <DetailRow label="Risk Score">
+                <span className="font-semibold text-ink">{alert.riskScore}</span> / 100
+              </DetailRow>
               <DetailRow label="ML confidence">
                 <ConfidenceMeter value={alert.confidence} />
-              </DetailRow>
-              <DetailRow label="Detection model">
-                <span className="text-ink-muted">{alert.detector}</span>
-              </DetailRow>
-              <DetailRow label="Correlated events">
-                {formatNumber(alert.correlatedEvents)} raw events
               </DetailRow>
             </dl>
           </section>
 
           <section>
-            <SectionHeading icon={AlertTriangle}>Threat description</SectionHeading>
+            <SectionHeading icon={AlertTriangle}>Threat Analysis</SectionHeading>
             <p className="text-[13px] leading-relaxed text-ink-muted">
               {alert.description || 'No description was provided for this detection.'}
             </p>
-            {alert.observable && (
-              <p className="mt-2 flex items-start gap-2 rounded border border-line bg-panel-sunken px-2.5 py-2">
-                <Link2 size={12} className="mt-0.5 shrink-0 text-ink-faint" aria-hidden />
-                <code className="font-mono text-[11px] break-all text-ink-muted">
-                  {alert.observable}
-                </code>
-              </p>
-            )}
+            <p className="text-[12px] leading-relaxed text-ink-faint mt-2">
+              Note: The ML model flagged this event based on flow characteristics with {alert.confidence}% confidence. Severity ({alert.severity}) represents the potential business impact.
+            </p>
           </section>
 
           <section>
-            <SectionHeading icon={ShieldQuestion}>Indicators of compromise</SectionHeading>
-            {indicators.length > 0 ? (
-              <ul className="flex flex-wrap gap-1.5">
-                {indicators.map((indicator) => (
+            <SectionHeading icon={ShieldQuestion}>Supporting Evidence</SectionHeading>
+            {evidence.length > 0 ? (
+              <ul className="flex flex-col gap-1.5">
+                {evidence.map((item) => (
                   <li
-                    key={indicator}
-                    className="rounded border border-line-strong bg-panel-sunken px-2 py-1 text-[11px] text-ink-muted"
+                    key={item}
+                    className="rounded border border-line-strong bg-panel-sunken px-2 py-1.5 text-[12px] text-ink-muted flex items-start gap-2"
                   >
-                    {indicator}
+                    <div className="h-1.5 w-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
+                    {item}
                   </li>
                 ))}
               </ul>
             ) : (
               <p className="text-[12px] text-ink-faint">
-                No indicators were recorded for this detection.
+                No supporting evidence was recorded.
               </p>
             )}
           </section>
@@ -253,22 +232,19 @@ export function IncidentDetails({ alert, onClose }) {
             {actions.length > 0 ? (
               <ol className="space-y-1.5">
                 {actions.map((action, index) => (
-                  <li key={action} className="flex gap-2 text-[13px] text-ink-muted">
-                    <span className="tabular mt-px shrink-0 font-mono text-[11px] text-ink-faint">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
+                  <li key={index} className="flex gap-2 text-[13px] text-ink-muted bg-accent/5 p-2 rounded border border-accent/20">
                     {action}
                   </li>
                 ))}
               </ol>
             ) : (
               <p className="text-[12px] text-ink-faint">
-                No recommended action is available for this detection.
+                No recommended action is available.
               </p>
             )}
           </section>
 
-          <EvidenceIntegrity evidence={alert.evidence} />
+          <EvidenceIntegrity evidenceStatus={alert.evidenceStatus} evidenceHash={alert.evidenceHash} />
         </div>
 
         <footer className="border-t border-line px-4 py-2.5">

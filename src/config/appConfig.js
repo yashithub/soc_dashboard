@@ -4,9 +4,9 @@
  */
 export const APP_CONFIG = {
   name: 'CyberShield SOC',
-  subtitle: 'Security Operations Center',
+  subtitle: 'AI-Based Network Threat Detection',
   shortName: 'CyberShield',
-  version: 'v1.0 · Prototype',
+  version: 'V1 • Synthetic Dataset',
 
   /**
    * Currently the dashboard is fed by a synthetic dataset. When the backend
@@ -23,10 +23,10 @@ export const APP_CONFIG = {
   },
 
   /** Rolling window the synthetic dataset spans, in hours. */
-  windowHours: 48,
+  windowHours: 24,
 
   /** Number of correlated alerts to generate. Spec floor is 200. */
-  alertCount: 260,
+  alertCount: 500,
 
   /** Rows per page in the alerts table. */
   pageSize: 12,
@@ -40,6 +40,13 @@ export const APP_CONFIG = {
  * because no service is actually running behind any of them.
  */
 export const SUBSYSTEMS = [
+  {
+    id: 'network-telemetry',
+    label: 'Network Telemetry',
+    value: 'Simulated',
+    state: 'simulated',
+    note: 'Network flows are synthetic.',
+  },
   {
     id: 'ml-engine',
     label: 'ML Detection Engine',

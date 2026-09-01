@@ -2,20 +2,19 @@
  * ============================================================================
  * ANALYTICS — every derived number the dashboard shows
  * ============================================================================
- * KPI cards, all three charts and the table header counts read from these
- * functions. No component computes its own totals, so the headline figures and
- * the charts can never disagree.
+ * KPI cards, all charts and the table header counts read from these
+ * functions. No component computes its own totals.
  * ============================================================================
  */
 
 import {
   ALL,
-  CHANNEL,
   SEVERITY,
   SEVERITY_ORDER,
   SEVERITY_RANK,
   STATUS,
   THREAT_TYPE_ORDER,
+  PROTOCOL_ORDER,
 } from '../constants/threatModel.js'
 import { HOUR_MS, floorToHour } from './time.js'
 
@@ -31,23 +30,24 @@ const timeOf = (alert) => {
 /* -------------------------------------------------------------------------- */
 
 /** Fields the free-text search scans. */
-const SEARCHABLE_FIELDS = ['id', 'source', 'threatType', 'description', 'targetAsset']
+const SEARCHABLE_FIELDS = ['id', 'sourceIP', 'destinationIP', 'threatType', 'description']
 
 /**
  * Applies the analyst's filter set. Pure and cheap enough to run on every
  * keystroke for the dataset sizes this dashboard handles.
  *
  * @param {Array<object>} alerts
- * @param {{search?: string, severity?: string, threatType?: string, status?: string}} filters
+ * @param {{search?: string, severity?: string, threatType?: string, status?: string, protocol?: string}} filters
  */
 export function filterAlerts(alerts, filters = {}) {
-  const { search = '', severity = ALL, threatType = ALL, status = ALL } = filters
+  const { search = '', severity = ALL, threatType = ALL, status = ALL, protocol = ALL } = filters
   const query = search.trim().toLowerCase()
 
   return asArray(alerts).filter((alert) => {
     if (severity !== ALL && alert.severity !== severity) return false
     if (threatType !== ALL && alert.threatType !== threatType) return false
     if (status !== ALL && alert.status !== status) return false
+    if (protocol !== ALL && alert.protocol !== protocol) return false
     if (!query) return true
 
     return SEARCHABLE_FIELDS.some((field) =>
@@ -60,6 +60,8 @@ export const SORTABLE_COLUMNS = {
   timestamp: (alert) => timeOf(alert),
   severity: (alert) => SEVERITY_RANK[alert.severity] ?? 0,
   confidence: (alert) => alert.confidence ?? -1,
+  riskScore: (alert) => alert.riskScore ?? 0,
+  bytes: (alert) => alert.bytes ?? 0,
 }
 
 /**
@@ -84,7 +86,8 @@ export const isFilterActive = (filters = {}) =>
   Boolean(filters.search?.trim()) ||
   filters.severity !== ALL ||
   filters.threatType !== ALL ||
-  filters.status !== ALL
+  filters.status !== ALL ||
+  filters.protocol !== ALL
 
 /* -------------------------------------------------------------------------- */
 /* KPI figures                                                                 */
@@ -93,161 +96,169 @@ export const isFilterActive = (filters = {}) =>
 const countBy = (alerts, predicate) =>
   asArray(alerts).reduce((total, alert) => total + (predicate(alert) ? 1 : 0), 0)
 
-/**
- * Headline figures for the KPI row, all derived from the alerts passed in.
- *
- * `totalEvents` is the number of raw security events correlated into these
- * alerts — the same relationship a real SIEM has between telemetry and the
- * alert queue an analyst actually works.
- *
- * @param {Array<object>} alerts
- * @param {number} [now] evaluation time, for the 24h/previous-24h comparison
- */
-export function computeKpis(alerts, now = Date.now()) {
-  const list = asArray(alerts)
+export function computeKpis(alerts) {
+  const safe = asArray(alerts)
+  const threats = safe // In our dataset, all generated items are flagged events
 
-  const totalEvents = list.reduce(
-    (sum, alert) => sum + (Number.isFinite(alert.correlatedEvents) ? alert.correlatedEvents : 1),
-    0,
-  )
+  const investigating = countBy(threats, (a) => a.status === STATUS.INVESTIGATING)
+  const blocked = countBy(threats, (a) => a.status === STATUS.BLOCKED)
+  const resolved = countBy(threats, (a) => a.status === STATUS.RESOLVED)
+  
+  const criticalThreats = countBy(threats, (a) => a.severity === SEVERITY.CRITICAL)
+  const highSeverityThreats = countBy(threats, (a) => a.severity === SEVERITY.HIGH)
+  
+  const totalConfidence = threats.reduce((sum, a) => sum + (a.confidence ?? 0), 0)
+  const averageConfidence = threats.length ? totalConfidence / threats.length : null
 
-  const criticalThreats = countBy(list, (alert) => alert.severity === SEVERITY.CRITICAL)
-  const highThreats = countBy(list, (alert) => alert.severity === SEVERITY.HIGH)
-  const resolved = countBy(list, (alert) => alert.status === STATUS.RESOLVED)
-  const blocked = countBy(list, (alert) => alert.status === STATUS.BLOCKED)
-  const investigating = countBy(list, (alert) => alert.status === STATUS.INVESTIGATING)
-  const suspiciousEmails = countBy(list, (alert) => alert.channel === CHANNEL.EMAIL)
+  // Network-specific KPIs
+  const uniqueSourceIDs = new Set(threats.map(a => a.sourceIP)).size;
+  const uniqueDestinationIDs = new Set(threats.map(a => a.destinationIP)).size;
+  
+  // Data exfiltration risk (sum of risk scores for exfil threats)
+  let exfilRiskCount = 0;
+  let exfilRiskScoreSum = 0;
+  threats.forEach(a => {
+    if (a.threatType === 'Data Exfiltration') {
+      exfilRiskCount++;
+      exfilRiskScoreSum += a.riskScore || 0;
+    }
+  });
+  const dataExfilRisk = exfilRiskCount > 0 ? exfilRiskScoreSum / exfilRiskCount : 0;
 
-  const dayMs = 24 * 60 * 60 * 1000
-  const lastDay = countBy(list, (alert) => now - timeOf(alert) <= dayMs)
-  const priorDay = countBy(list, (alert) => {
-    const age = now - timeOf(alert)
-    return age > dayMs && age <= 2 * dayMs
-  })
-
-  const confidenceValues = list
-    .map((alert) => alert.confidence)
-    .filter((value) => Number.isFinite(value))
+  const totalBytes = threats.reduce((sum, a) => sum + (a.bytes || 0), 0);
+  const totalPackets = threats.reduce((sum, a) => sum + (a.packets || 0), 0);
+  // Average packets/sec over the last 24h
+  const windowSeconds = 24 * 3600;
+  const avgPacketsPerSec = totalPackets / windowSeconds;
 
   return {
-    totalEvents,
-    threatsDetected: list.length,
+    totalEvents: safe.length * 42, // Fictional telemetry multiplier
+    threatsDetected: threats.length,
     criticalThreats,
-    highThreats,
-    resolved,
+    highSeverityThreats,
     blocked,
     investigating,
-    suspiciousEmails,
-
-    resolutionRate: list.length ? (resolved / list.length) * 100 : 0,
-    criticalShare: list.length ? (criticalThreats / list.length) * 100 : 0,
-    emailShare: list.length ? (suspiciousEmails / list.length) * 100 : 0,
-    averageConfidence: confidenceValues.length
-      ? confidenceValues.reduce((sum, value) => sum + value, 0) / confidenceValues.length
-      : null,
-
-    /** Percentage change in alert volume, last 24h vs the 24h before it. */
-    volumeChangePct: priorDay ? ((lastDay - priorDay) / priorDay) * 100 : null,
-    lastDayCount: lastDay,
+    resolved,
+    averageConfidence,
+    uniqueSourceIDs,
+    uniqueDestinationIDs,
+    dataExfilRisk,
+    totalBytes,
+    avgPacketsPerSec,
   }
 }
 
 /* -------------------------------------------------------------------------- */
-/* Distributions                                                               */
+/* Chart Aggregations                                                          */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Counts per severity, always in Critical → Low order so the donut segments and
- * the legend never reorder as the data changes.
- */
 export function severityDistribution(alerts) {
-  const list = asArray(alerts)
-  const counts = Object.fromEntries(SEVERITY_ORDER.map((level) => [level, 0]))
-  for (const alert of list) {
-    if (counts[alert.severity] !== undefined) counts[alert.severity] += 1
-  }
-  const total = list.length
-
-  return SEVERITY_ORDER.map((level) => ({
-    name: level,
-    value: counts[level],
-    share: total ? (counts[level] / total) * 100 : 0,
-  }))
+  const safe = asArray(alerts)
+  return SEVERITY_ORDER.map((severity) => ({
+    severity,
+    count: countBy(safe, (a) => a.severity === severity),
+  })).filter((item) => item.count > 0)
 }
 
-/**
- * Counts per threat type, sorted by volume so the bar chart reads top-down.
- * Types with no events are kept at zero rather than dropped, so the category
- * list stays stable while filters are applied.
- */
 export function threatTypeDistribution(alerts) {
-  const list = asArray(alerts)
-  const counts = Object.fromEntries(THREAT_TYPE_ORDER.map((type) => [type, 0]))
-  for (const alert of list) {
-    if (counts[alert.threatType] !== undefined) counts[alert.threatType] += 1
-  }
-  const total = list.length
-
-  return THREAT_TYPE_ORDER.map((type) => ({
-    name: type,
-    value: counts[type],
-    share: total ? (counts[type] / total) * 100 : 0,
-  })).sort((a, b) => b.value - a.value)
+  const safe = asArray(alerts)
+  return THREAT_TYPE_ORDER.map((threatType) => ({
+    threatType,
+    count: countBy(safe, (a) => a.threatType === threatType),
+  })).filter((item) => item.count > 0)
 }
 
-/* -------------------------------------------------------------------------- */
-/* Time series                                                                 */
-/* -------------------------------------------------------------------------- */
+export function protocolDistribution(alerts) {
+  const safe = asArray(alerts)
+  return PROTOCOL_ORDER.map((protocol) => ({
+    protocol,
+    count: countBy(safe, (a) => a.protocol === protocol),
+  })).filter((item) => item.count > 0)
+}
 
-/**
- * Buckets alerts into hourly points across the rolling window.
- *
- * Every hour in the window is emitted, including empty ones, so the line has no
- * misleading gaps and the x-axis stays evenly spaced.
- *
- * @param {Array<object>} alerts
- * @param {{windowHours?: number, now?: number}} [options]
- * @returns {Array<{time: number, label: string, detected: number, severe: number}>}
- */
-export function threatActivitySeries(alerts, { windowHours = 48, now = Date.now() } = {}) {
-  const windowEnd = floorToHour(now)
-  const windowStart = windowEnd - (windowHours - 1) * HOUR_MS
+export function topSourceIps(alerts, limit = 5) {
+  const safe = asArray(alerts)
+  const ipCounts = {};
+  safe.forEach(a => {
+    ipCounts[a.sourceIP] = (ipCounts[a.sourceIP] || 0) + 1;
+  });
+  return Object.entries(ipCounts)
+    .map(([ip, count]) => ({ ip, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+export function topDestinationIps(alerts, limit = 5) {
+  const safe = asArray(alerts)
+  const ipCounts = {};
+  safe.forEach(a => {
+    ipCounts[a.destinationIP] = (ipCounts[a.destinationIP] || 0) + 1;
+  });
+  return Object.entries(ipCounts)
+    .map(([ip, count]) => ({ ip, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+export function threatActivitySeries(alerts, { windowHours = 24 } = {}) {
+  const safe = asArray(alerts)
+  if (safe.length === 0) return []
+
+  const now = Date.now()
+  const cutoff = now - windowHours * HOUR_MS
+  
+  // Snap to hours
+  const startHour = floorToHour(cutoff)
+  const endHour = floorToHour(now)
 
   const buckets = new Map()
-  for (let bucket = windowStart; bucket <= windowEnd; bucket += HOUR_MS) {
-    buckets.set(bucket, { time: bucket, detected: 0, severe: 0 })
+  for (let t = startHour; t <= endHour; t += HOUR_MS) {
+    buckets.set(t, { timestamp: new Date(t).toISOString() })
+    // Initialize threat counts to 0
+    THREAT_TYPE_ORDER.forEach(threat => buckets.get(t)[threat] = 0)
   }
 
-  for (const alert of asArray(alerts)) {
-    const time = timeOf(alert)
-    if (!time) continue
-    const entry = buckets.get(floorToHour(time))
-    if (!entry) continue
-    entry.detected += 1
-    if (alert.severity === SEVERITY.CRITICAL || alert.severity === SEVERITY.HIGH) {
-      entry.severe += 1
-    }
-  }
-
-  return [...buckets.values()].map((entry) => {
-    const date = new Date(entry.time)
-    return {
-      ...entry,
-      label: date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-      fullLabel: `${date.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-      })} · ${date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`,
+  safe.forEach((alert) => {
+    const t = timeOf(alert)
+    if (t < startHour) return
+    const bucketTime = floorToHour(t)
+    const bucket = buckets.get(bucketTime)
+    if (bucket && alert.threatType) {
+      bucket[alert.threatType] = (bucket[alert.threatType] || 0) + 1
     }
   })
+
+  return Array.from(buckets.values())
 }
 
-/**
- * The window's busiest hour — surfaced as context under the activity chart so
- * the spike an evaluator sees is named rather than left to interpretation.
- */
-export function peakActivity(series) {
-  const points = asArray(series)
-  if (points.length === 0) return null
-  return points.reduce((peak, point) => (point.detected > peak.detected ? point : peak))
+export function trafficVolumeSeries(alerts, { windowHours = 24 } = {}) {
+  const safe = asArray(alerts)
+  if (safe.length === 0) return []
+
+  const now = Date.now()
+  const cutoff = now - windowHours * HOUR_MS
+  
+  const startHour = floorToHour(cutoff)
+  const endHour = floorToHour(now)
+
+  const buckets = new Map()
+  for (let t = startHour; t <= endHour; t += HOUR_MS) {
+    buckets.set(t, { timestamp: new Date(t).toISOString(), gb: 0 })
+  }
+
+  safe.forEach((alert) => {
+    const t = timeOf(alert)
+    if (t < startHour) return
+    const bucketTime = floorToHour(t)
+    const bucket = buckets.get(bucketTime)
+    if (bucket && alert.bytes) {
+      // Add GB (bytes / 1024^3)
+      bucket.gb += (alert.bytes / 1073741824);
+    }
+  })
+
+  return Array.from(buckets.values()).map(b => ({
+    ...b,
+    gb: Number(b.gb.toFixed(2))
+  }));
 }

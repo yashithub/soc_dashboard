@@ -1,32 +1,22 @@
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  LabelList,
+  PieChart,
+  Pie,
+  Cell,
   ResponsiveContainer,
   Tooltip,
-  XAxis,
-  YAxis,
 } from 'recharts'
-import { BarChart3 } from 'lucide-react'
-import { CHART, COLORS } from '../../theme/tokens.js'
+import { PieChart as PieChartIcon } from 'lucide-react'
+import { COLORS, THREAT_COLORS } from '../../theme/tokens.js'
 import { EmptyState } from '../ui/Badges.jsx'
-import { ChartTooltip } from './ChartTooltip.jsx'
 
-/**
- * Alert volume per threat type.
- *
- * One measure across categories, so it is a single-hue bar chart: the category
- * names are already on the axis, and colouring each bar differently would
- * encode nothing. Horizontal bars keep the longer labels readable.
- */
 export function ThreatTypeChart({ data }) {
-  const hasData = data.some((entry) => entry.value > 0)
+  const hasData = data.some((entry) => entry.count > 0)
+  const total = data.reduce((sum, entry) => sum + entry.count, 0)
 
   if (!hasData) {
     return (
       <EmptyState
-        icon={BarChart3}
+        icon={PieChartIcon}
         title="No threat types to compare"
         message="Clear or widen the filters to see the type breakdown."
       />
@@ -34,51 +24,35 @@ export function ThreatTypeChart({ data }) {
   }
 
   return (
-    <div className="h-[240px] w-full">
+    <div className="h-[240px] w-full relative">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={data}
-          layout="vertical"
-          margin={{ top: 4, right: 34, bottom: 0, left: 0 }}
-          barCategoryGap="22%"
-        >
-          <CartesianGrid stroke={CHART.gridStroke} strokeDasharray="3 3" horizontal={false} />
-          <XAxis
-            type="number"
-            tick={CHART.tick}
-            tickLine={false}
-            axisLine={{ stroke: CHART.axisStroke }}
-            allowDecimals={false}
-          />
-          <YAxis
-            type="category"
-            dataKey="name"
-            tick={{ ...CHART.tick, fill: COLORS.inkMuted }}
-            tickLine={false}
-            axisLine={false}
-            width={112}
-          />
-          <Tooltip
-            content={<ChartTooltip />}
-            cursor={{ fill: COLORS.surfaceRaised }}
-          />
-          <Bar
-            dataKey="value"
-            name="Alerts"
-            fill={CHART.seriesPrimary}
-            radius={[0, 4, 4, 0]}
-            maxBarSize={18}
-            isAnimationActive={false}
+        <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+          <Pie
+            data={data}
+            innerRadius="60%"
+            outerRadius="80%"
+            paddingAngle={2}
+            dataKey="count"
+            nameKey="threatType"
+            stroke="none"
           >
-            <LabelList
-              dataKey="value"
-              position="right"
-              offset={8}
-              style={{ fill: COLORS.inkMuted, fontSize: 11, fontWeight: 600 }}
-            />
-          </Bar>
-        </BarChart>
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={THREAT_COLORS[entry.threatType] || COLORS.inkMuted} />
+            ))}
+          </Pie>
+          <Tooltip 
+            contentStyle={{ backgroundColor: COLORS.surfaceRaised, borderColor: COLORS.line, color: COLORS.ink, fontSize: '12px' }}
+            itemStyle={{ color: COLORS.inkMuted }}
+            formatter={(value, name) => [value, name]}
+          />
+        </PieChart>
       </ResponsiveContainer>
+
+      {/* Center total */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        <span className="text-[26px] font-semibold text-ink leading-none">{total}</span>
+        <span className="text-[11px] text-ink-faint uppercase tracking-wide mt-1">Total Threats</span>
+      </div>
     </div>
   )
 }

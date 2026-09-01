@@ -26,7 +26,7 @@
  */
 
 import { APP_CONFIG, SUBSYSTEMS } from '../config/appConfig.js'
-import { generateAlerts } from '../data/fakeAlerts.js'
+import { RAW_ALERTS } from '../data/fakeAlerts.js'
 import {
   EVIDENCE_STATUS,
   SEVERITY,
@@ -45,68 +45,20 @@ const isOneOf = (value, allowed, fallback) =>
 
 /**
  * Coerces one raw record into the normalized alert model.
- *
- * Defensive by design: a real feed will eventually deliver partial or unknown
- * values, and the dashboard must render rather than crash. This is the only
- * place that needs editing when the backend's field names differ.
  */
 export function normalizeAlert(raw, index = 0) {
   const record = raw ?? {}
-  const timestamp =
-    typeof record.timestamp === 'string' && !Number.isNaN(Date.parse(record.timestamp))
-      ? record.timestamp
-      : null
-
-  const confidence = Number(record.confidence)
-
-  return {
-    id: record.id ?? `INC-UNKNOWN-${index}`,
-    timestamp,
-    source: record.source || 'Unknown source',
-    threatType: isOneOf(record.threatType, THREAT_TYPE_ORDER, THREAT_TYPE.OTHER),
-    severity: isOneOf(record.severity, SEVERITY_ORDER, SEVERITY.LOW),
-    confidence: Number.isFinite(confidence)
-      ? Math.min(100, Math.max(0, confidence))
-      : null,
-    status: isOneOf(record.status, STATUS_ORDER, STATUS.PENDING),
-    description: record.description || '',
-    indicators: Array.isArray(record.indicators) ? record.indicators.filter(Boolean) : [],
-    recommendedAction: Array.isArray(record.recommendedAction)
-      ? record.recommendedAction.filter(Boolean)
-      : [],
-
-    channel: record.channel ?? null,
-    targetAsset: record.targetAsset ?? null,
-    detector: record.detector ?? null,
-    observable: record.observable ?? null,
-    correlatedEvents: Number.isFinite(Number(record.correlatedEvents))
-      ? Number(record.correlatedEvents)
-      : 1,
-
-    evidence: {
-      status: isOneOf(
-        record.evidence?.status,
-        Object.values(EVIDENCE_STATUS),
-        EVIDENCE_STATUS.PENDING,
-      ),
-      hash: record.evidence?.hash ?? null,
-      hashAlgorithm: record.evidence?.hashAlgorithm ?? 'SHA-256 (placeholder)',
-      // Pinned in version 1: there is no chain integration to report on.
-      blockchain: EVIDENCE_STATUS.NOT_CONNECTED,
-      verification: record.evidence?.verification ?? 'Pending',
-    },
-  }
+  
+  // Since we are returning the exact synthetic model, we just return it. 
+  // In a real API, we would map the backend response here.
+  return record;
 }
 
-/**
- * The version-1 dataset is generated once per page load and cached, so repeated
- * reads are stable and the charts do not change under the presenter.
- */
 let cachedAlerts = null
 
 function loadSyntheticAlerts() {
   if (!cachedAlerts) {
-    cachedAlerts = generateAlerts().map(normalizeAlert)
+    cachedAlerts = RAW_ALERTS.map(normalizeAlert)
   }
   return cachedAlerts
 }

@@ -1,21 +1,22 @@
 import {
   Activity,
   AlertOctagon,
-  CheckCircle2,
-  Mail,
+  Network,
   ShieldAlert,
-  TrendingDown,
-  TrendingUp,
+  BrainCircuit,
+  ShieldBan,
+  Database,
+  Users
 } from 'lucide-react'
 import { APP_CONFIG } from '../config/appConfig.js'
 import { formatCompact, formatNumber, formatPercent } from '../utils/format.js'
 
 /**
  * One KPI tile. `accent` tints only the icon and the value — the label and
- * context stay in text ink, so a row of five cards reads as one system rather
- * than five competing colours.
+ * context stay in text ink, so a row of multiple cards reads as one system rather
+ * than competing colours.
  */
-export function KPICard({ label, value, context, icon: Icon, accent = 'neutral', trend }) {
+export function KPICard({ label, value, context, icon: Icon, accent = 'neutral' }) {
   const accents = {
     neutral: 'text-ink-muted',
     accent: 'text-[#8ab8f0]',
@@ -39,20 +40,6 @@ export function KPICard({ label, value, context, icon: Icon, accent = 'neutral',
       </p>
 
       <div className="mt-2 flex items-center gap-2">
-        {trend && (
-          <span
-            className={`inline-flex items-center gap-0.5 text-[11px] font-medium ${
-              trend.direction === 'up' ? 'text-[#f08c8c]' : 'text-[#7ed08a]'
-            }`}
-          >
-            {trend.direction === 'up' ? (
-              <TrendingUp size={11} aria-hidden />
-            ) : (
-              <TrendingDown size={11} aria-hidden />
-            )}
-            {trend.label}
-          </span>
-        )}
         {context && <p className="truncate text-[11px] text-ink-faint">{context}</p>}
       </div>
     </div>
@@ -60,63 +47,57 @@ export function KPICard({ label, value, context, icon: Icon, accent = 'neutral',
 }
 
 /**
- * The five headline figures. Every value comes from `computeKpis`, which reads
+ * The headline figures. Every value comes from `computeKpis`, which reads
  * the same alert list the charts and the table use.
  */
 export function KPISection({ kpis, scopeLabel }) {
-  const trend =
-    Number.isFinite(kpis.volumeChangePct) && Math.abs(kpis.volumeChangePct) >= 1
-      ? {
-          direction: kpis.volumeChangePct > 0 ? 'up' : 'down',
-          label: `${Math.abs(kpis.volumeChangePct).toFixed(0)}% vs prev 24h`,
-        }
-      : null
-
   const cards = [
     {
-      label: 'Total Security Events',
+      label: 'Total Network Flows',
       value: formatCompact(kpis.totalEvents),
-      context: `correlated into ${formatNumber(kpis.threatsDetected)} alerts`,
+      context: `${formatCompact(kpis.totalBytes)} bytes ingested · ${APP_CONFIG.windowHours}h`,
       icon: Activity,
       accent: 'accent',
     },
     {
       label: 'Threats Detected',
       value: formatNumber(kpis.threatsDetected),
-      context: `${scopeLabel} · ${APP_CONFIG.windowHours}h window`,
+      context: `${scopeLabel} · ML flagged`,
       icon: ShieldAlert,
       accent: 'accent',
-      trend,
     },
     {
       label: 'Critical Threats',
       value: formatNumber(kpis.criticalThreats),
-      context: `${formatPercent(kpis.criticalShare, 0)} of alerts · ${formatNumber(
-        kpis.highThreats,
-      )} high`,
+      context: `${formatNumber(kpis.highSeverityThreats)} high severity`,
       icon: AlertOctagon,
       accent: 'critical',
     },
     {
-      label: 'Threats Resolved',
-      value: formatNumber(kpis.resolved),
-      context: `${formatPercent(kpis.resolutionRate, 0)} closed · ${formatNumber(
-        kpis.investigating,
-      )} in progress`,
-      icon: CheckCircle2,
+      label: 'Blocked / Mitigated',
+      value: formatNumber(kpis.blocked),
+      context: `${formatNumber(kpis.investigating)} investigating`,
+      icon: ShieldBan,
       accent: 'ok',
     },
     {
-      label: 'Suspicious Emails',
-      value: formatNumber(kpis.suspiciousEmails),
-      context: `${formatPercent(kpis.emailShare, 0)} of alerts are email-borne`,
-      icon: Mail,
+      label: 'Avg ML Confidence',
+      value: kpis.averageConfidence !== null ? `${kpis.averageConfidence.toFixed(1)}%` : '—',
+      context: 'Across detected anomalies',
+      icon: BrainCircuit,
       accent: 'warn',
+    },
+    {
+      label: 'Unique Source IPs',
+      value: formatNumber(kpis.uniqueSourceIDs),
+      context: `${formatNumber(kpis.uniqueDestinationIDs)} destination IPs targeted`,
+      icon: Users,
+      accent: 'neutral',
     },
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
       {cards.map((card) => (
         <KPICard key={card.label} {...card} />
       ))}

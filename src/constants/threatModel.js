@@ -7,9 +7,9 @@
  *
  * Normalized alert shape:
  * {
- *   id, timestamp, source, threatType, severity, confidence, status,
- *   description, indicators[], recommendedAction[],
- *   channel, targetAsset, detector, correlatedEvents, evidence{}
+ *   id, timestamp, sourceIP, destinationIP, sourcePort, destinationPort,
+ *   protocol, bytes, packets, duration, direction, threatType, severity,
+ *   confidence, riskScore, status, description, supportingEvidence[], recommendedAction[]
  * }
  */
 
@@ -33,21 +33,21 @@ export const SEVERITY_RANK = Object.fromEntries(
 )
 
 export const THREAT_TYPE = {
-  PHISHING: 'Phishing',
-  MALWARE: 'Malware',
-  SPAM: 'Spam',
-  CREDENTIAL_ATTACK: 'Credential Attack',
-  SUSPICIOUS_LINK: 'Suspicious Link',
-  OTHER: 'Other',
+  DDOS: 'Volumetric / Protocol DDoS',
+  C2_BEACONING: 'Botnet C2 Beaconing',
+  DGA_DNS_TUNNELLING: 'DGA Domains / DNS Tunnelling',
+  TLS_QUIC_MALWARE: 'Malware inside Encrypted TLS/QUIC Sessions',
+  RECON_PORT_SCAN: 'Reconnaissance / Port Scanning',
+  DATA_EXFILTRATION: 'Data Exfiltration',
 }
 
 export const THREAT_TYPE_ORDER = [
-  THREAT_TYPE.PHISHING,
-  THREAT_TYPE.MALWARE,
-  THREAT_TYPE.SPAM,
-  THREAT_TYPE.CREDENTIAL_ATTACK,
-  THREAT_TYPE.SUSPICIOUS_LINK,
-  THREAT_TYPE.OTHER,
+  THREAT_TYPE.DDOS,
+  THREAT_TYPE.C2_BEACONING,
+  THREAT_TYPE.DGA_DNS_TUNNELLING,
+  THREAT_TYPE.TLS_QUIC_MALWARE,
+  THREAT_TYPE.RECON_PORT_SCAN,
+  THREAT_TYPE.DATA_EXFILTRATION,
 ]
 
 export const STATUS = {
@@ -66,11 +66,22 @@ export const STATUS_ORDER = [
 
 /** Detection channel — where the event was observed. */
 export const CHANNEL = {
-  EMAIL: 'Email',
-  ENDPOINT: 'Endpoint',
-  IDENTITY: 'Identity',
   NETWORK: 'Network',
 }
+
+export const PROTOCOL = {
+  TCP: 'TCP',
+  UDP: 'UDP',
+  QUIC: 'QUIC',
+  ICMP: 'ICMP',
+}
+
+export const PROTOCOL_ORDER = [
+  PROTOCOL.TCP,
+  PROTOCOL.UDP,
+  PROTOCOL.QUIC,
+  PROTOCOL.ICMP,
+]
 
 /** Evidence-integrity workflow states. Version 1 never reaches 'Anchored'. */
 export const EVIDENCE_STATUS = {
@@ -86,6 +97,7 @@ export const FILTER_OPTIONS = {
   severity: [ALL, ...SEVERITY_ORDER],
   threatType: [ALL, ...THREAT_TYPE_ORDER],
   status: [ALL, ...STATUS_ORDER],
+  protocol: [ALL, ...PROTOCOL_ORDER],
 }
 
 export const EMPTY_FILTERS = {
@@ -93,4 +105,5 @@ export const EMPTY_FILTERS = {
   severity: ALL,
   threatType: ALL,
   status: ALL,
+  protocol: ALL,
 }

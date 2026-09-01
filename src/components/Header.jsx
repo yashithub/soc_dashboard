@@ -34,7 +34,19 @@ export function Header({ onRefresh, refreshing = false }) {
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           {/* Describes the dashboard process itself — not the (absent) backend. */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-end mr-4">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2" aria-hidden>
+                <span className="absolute inline-flex h-full w-full rounded-full bg-ok/60 animate-ping" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-ok" />
+              </span>
+              <span className="text-[13px] font-bold text-ok tracking-wide">STREAM ACTIVE</span>
+            </div>
+            <span className="text-[11px] text-ink-faint">Synthetic Network Telemetry</span>
+            <span className="text-[11px] text-accent mt-0.5">~2.4K flows/sec</span>
+          </div>
+
+          <div className="flex items-center gap-2 border-l border-line pl-4">
             <span className="relative flex h-2 w-2" aria-hidden>
               <span className="absolute inline-flex h-full w-full rounded-full bg-ok/60" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-ok" />

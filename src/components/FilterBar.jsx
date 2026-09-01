@@ -53,7 +53,7 @@ export function FilterBar({ filters, onChange, resultCount, totalCount }) {
           type="search"
           value={filters.search}
           onChange={(event) => update({ search: event.target.value })}
-          placeholder="Search incident ID, source, threat type or description…"
+          placeholder="Search incident ID, IP, threat type or description…"
           aria-label="Search alerts"
           className="h-8 w-full rounded border border-line-strong bg-panel-sunken pr-3 pl-8 text-xs text-ink placeholder:text-ink-faint hover:border-accent/50 focus:border-accent"
         />
@@ -73,6 +73,13 @@ export function FilterBar({ filters, onChange, resultCount, totalCount }) {
           value={filters.threatType}
           options={FILTER_OPTIONS.threatType}
           onChange={(value) => update({ threatType: value })}
+        />
+        <FilterSelect
+          id="filter-protocol"
+          label="Protocol"
+          value={filters.protocol}
+          options={FILTER_OPTIONS.protocol}
+          onChange={(value) => update({ protocol: value })}
         />
         <FilterSelect
           id="filter-status"

@@ -65,6 +65,17 @@ export const STATUS_STYLE = {
   [STATUS.PENDING]: 'bg-[#a88300]/15 text-[#d3ae3a] ring-1 ring-inset ring-[#a88300]/35',
 }
 
+import { THREAT_TYPE } from '../constants/threatModel.js'
+
+export const THREAT_COLORS = {
+  [THREAT_TYPE.DDOS]: '#3987e5',
+  [THREAT_TYPE.C2_BEACONING]: '#d64545',
+  [THREAT_TYPE.DGA_DNS_TUNNELLING]: '#f79a4a',
+  [THREAT_TYPE.TLS_QUIC_MALWARE]: '#9333ea',
+  [THREAT_TYPE.RECON_PORT_SCAN]: '#3fb950',
+  [THREAT_TYPE.DATA_EXFILTRATION]: '#a88300',
+}
+
 /**
  * Shared Recharts chrome so all three charts read as one system.
  *
